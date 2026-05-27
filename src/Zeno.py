@@ -77,6 +77,7 @@ from zeno.ui.style_helpers import (
     populate_styled_table,
 )
 from zeno.ui.design_tokens import C
+from zeno.ui.mac_utils import set_dock_active, on_any_window_closed
 
 if sys.platform == "darwin":
     from zeno.ui.ai_rule_dialog import AIRuleDialog
@@ -429,7 +430,7 @@ class RulesWindow(QMainWindow):
 
     def show_settings(self):
         """Shows the settings dialog (reuses a single instance)."""
-        _set_macos_activation_policy(False)
+        set_dock_active(True)
         self._settings_dialog.refresh()
         self._settings_dialog.show()
         self._settings_dialog.raise_()
@@ -449,8 +450,7 @@ class RulesWindow(QMainWindow):
 
     def _on_settings_closed(self):
         """Slot called when the Settings dialog is dismissed (OK or Cancel)."""
-        if not self.isVisible():
-            _set_macos_activation_policy(True)
+        on_any_window_closed()
 
     def open_log_file(self):
         """Opens the log file."""
@@ -477,6 +477,7 @@ class RulesWindow(QMainWindow):
 
     def message_clicked(self):
         """Shows a dialog with details about the last service run."""
+        set_dock_active(True)
         msgBox = QDialog(self)
         msgBox.ui = Ui_listDialog()
         msgBox.ui.setupUi(msgBox)
@@ -497,6 +498,7 @@ class RulesWindow(QMainWindow):
         populate_styled_list(msgBox.ui.listWidget, affected)
         msgBox.exec()
         self.service_run_details = []
+        on_any_window_closed()
 
     def start_thread(self):
         """Starts the zeno service thread if it is not already running."""
@@ -551,6 +553,7 @@ class RulesWindow(QMainWindow):
 
     def add_ai_rule(self):
         """Opens the AI rule generation dialog."""
+        set_dock_active(True)
         self._ai_dialog.show()
         self._ai_dialog.raise_()
         self._ai_dialog.activateWindow()
@@ -639,6 +642,7 @@ class RulesWindow(QMainWindow):
         rule["enabled"] = True
         report, affected = apply_rule(rule)
 
+        set_dock_active(True)
         msgBox = QDialog(self)
         msgBox.ui = Ui_listDialog()
         msgBox.ui.setupUi(msgBox)
@@ -658,6 +662,7 @@ class RulesWindow(QMainWindow):
             msgBox.ui.label.setText("No files affected by this rule.")
         populate_styled_list(msgBox.ui.listWidget, affected)
         msgBox.exec()
+        on_any_window_closed()
 
     def load_rules(self):
         """Loads settings (including rules) from the store and populates the rules table."""
@@ -733,7 +738,7 @@ class RulesWindow(QMainWindow):
         QApplication.quit()
 
     def showEvent(self, e):
-        _set_macos_activation_policy(False)
+        set_dock_active(True)
         # Ensure a user-shown window will be shown next startup
         try:
             s = load_settings()
@@ -762,7 +767,7 @@ class RulesWindow(QMainWindow):
         except Exception:
             pass
         super().hideEvent(e)
-        _set_macos_activation_policy(True)
+        on_any_window_closed()
 
     def closeEvent(self, event):
         """
@@ -848,18 +853,6 @@ class new_version_checker(QThread):
             logging.exception(f"exception {e}")
 
 
-def _set_macos_activation_policy(accessory: bool):
-    """Switch NSApplication activation policy.
-    accessory=True hides the Dock icon; accessory=False shows it.
-    """
-    try:
-        from AppKit import NSApplication, NSApplicationActivationPolicyAccessory, NSApplicationActivationPolicyRegular
-        ns_app = NSApplication.sharedApplication()
-        policy = NSApplicationActivationPolicyAccessory if accessory else NSApplicationActivationPolicyRegular
-        ns_app.setActivationPolicy_(policy)
-    except Exception:
-        pass
-
 def main():
     """Main function to run the application."""
     _ensure_single_instance()
@@ -917,7 +910,7 @@ def main():
     if settings["rules_window_visible_on_exit"]:
         window.show()
     else:
-        _set_macos_activation_policy(True)
+        set_dock_active(False)
 
     window.setWindowTitle("Rules")
     sys.exit(app.exec())

@@ -32,6 +32,7 @@ from zeno.ui.style_helpers import (
     reapply_styles,
 )
 from zeno.ui.widgets import LoadingButton
+from zeno.ui.mac_utils import set_dock_active, on_any_window_closed
 
 _EXAMPLES = [
     "Move all PDFs older than 7 days to a Documents folder",
@@ -537,12 +538,14 @@ class AIRuleDialog(QDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
+        set_dock_active(True)
         self._check_ai_availability()
         self._examples_banner._timer.start()
 
     def hideEvent(self, event):
         super().hideEvent(event)
         self._examples_banner._timer.stop()
+        on_any_window_closed()
 
     def _on_open_settings(self):
         self.open_settings_requested.emit()
