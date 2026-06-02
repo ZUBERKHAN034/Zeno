@@ -1,23 +1,86 @@
-__pycache__
+# ===========================
+# Python
+# ===========================
+**pycache**/
+*.py[cod]
+dist/
+build/
+
+# Project artifacts
 archive/
 backup/
 samples/
+sandbox/
 sandbox.py
+
+# Generated files
 *.log
-*.exe
 *.bak
 *.spec
-dist/
-build/
-sandbox/
-ui/icons/
-.vscode
-.DS_Store
-.commandcode
 
-# Tooling and AI context
-graphify-out/
+# ===========================
+# IDEs
+# ===========================
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.vscode/*
+!.vscode/extensions.json
+
+.settings/
+.project
+.classpath
+.factorypath
+.springBeans
+.sts4-cache/
+.apt_generated/
+bin/
+out/
+
+# ===========================
+# OS Files
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+
+# ===========================
+# AI / Tooling
+# ===========================
 .gemini/
 GEMINI.md
 .windsurfrules
 GRAPH_REPORT.md
+graphify-out/
+
+# ===========================
+# CommandCode
+# ===========================
+.commandcode
+.commandcode/
+*.commandcode
+
+# ===========================
+# Misc
+# ===========================
+logs/
+log/
+ui/icons/
