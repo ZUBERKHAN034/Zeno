@@ -6,6 +6,10 @@
 
 # PySide6
 - Always import Signal from PySide6.QtCore when defining custom signals in widget classes. Confidence: 0.70
+- Store associated data with QListWidgetItem/QTableWidgetItem using setData(Qt.ItemDataRole.UserRole, data) and retrieve with item.data(Qt.ItemDataRole.UserRole). Confidence: 0.70
+
+# Data Flow
+- When upgrading a data structure that flows through multiple layers (e.g., strings → dicts from rules.py through signals to UI), use isinstance() checks in consumers to support both old and new formats for backward compatibility. Confidence: 0.70
 
 # Architecture
 - Instant file detection (FSWatcher) must skip rules that have time-based conditions (age, date, modified, created, days, weeks, months) — those rules are handled exclusively by the scheduled timer. Confidence: 0.80
@@ -15,7 +19,8 @@
 - Use gitmoji in commit messages. Confidence: 0.70
 
 # Workflow
-- After implementing changes, perform end-to-end verification and check for dead code before committing. Confidence: 0.75
+- After implementing changes, perform end-to-end verification and check for dead code before committing. Confidence: 0.85
+- When verifying a feature that has multiple action/state permutations, present an exhaustive scenario table covering every possible path (e.g., action type × dryrun/real × exists/missing file). Confidence: 0.70
 
 # UI Styling
 - Rules window table should have alternating two-tone row colors for the entire section. Confidence: 0.70

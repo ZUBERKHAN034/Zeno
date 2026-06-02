@@ -110,9 +110,26 @@ def populate_styled_list(list_widget: QListWidget, items, fill_empty_rows: bool 
     if not all_items:
         start = 0
     else:
-        for text in all_items:
+        for entry in all_items:
+            if isinstance(entry, dict):
+                text = entry.get("text", "")
+                path = entry.get("path", "")
+                action = entry.get("action", "")
+                dryrun = entry.get("dryrun", False)
+            else:
+                text = str(entry)
+                path = ""
+                action = ""
+                dryrun = False
             item = QListWidgetItem(text)
             item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+            if path:
+                item.setData(Qt.ItemDataRole.UserRole, path)
+                item.setToolTip("Double-click to reveal in Finder")
+            if action:
+                item.setData(Qt.ItemDataRole.UserRole + 1, action)
+            if dryrun:
+                item.setData(Qt.ItemDataRole.UserRole + 2, True)
             list_widget.addItem(item)
         start = len(all_items)
 

@@ -13,6 +13,7 @@ sandbox/
 ui/icons/
 .vscode
 .DS_Store
+.commandcode
 
 # Tooling and AI context
 graphify-out/

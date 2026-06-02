@@ -23,6 +23,8 @@ def apply_rule(rule, dryrun=False):
                 "Processing rule" + (" [DRYRUN mode]" if dryrun else "") + ": " + rule['name'])
             for f in files:
                 msg = ""
+                item_path = None
+                action_type = rule['action'].lower().replace(' ', '_')
                 p = Path(f)
                 if rule['action'] == 'Copy':
                     target_folder = resolve_path(rule['target_folder'], p)
@@ -38,23 +40,31 @@ def apply_rule(rule, dryrun=False):
                                         result = copytree(f, target)
                                         # hide_dc(result) # TBD only for sidecar files
                                         msg = "Replaced " + str(result) + " with " + f
+                                        item_path = str(result)
                                     report['copied'] += 1
                             else:
                                 if not dryrun:
                                     # TBD will probably crash if target exists!
                                     result = copytree(f, target)
                                     # hide_dc(result) # TBD only for sidecar files
+                                    item_path = str(result) if result else str(target)
+                                else:
+                                    result = str(target)
+                                    item_path = str(target)
                                 msg = "Copied " + f + " to " + str(result)
                                 report['copied'] += 1
                         else:
                             if target.is_file() and os.stat(target).st_size == os.stat(f).st_size:  # TBD comparing sizes may be not enough
                                 msg = "File " + f + " already exists in the target location and has the same size, skipping"
+                                item_path = str(target)
                             else:
                                 if not dryrun:
                                     result = advanced_copy(
                                         f, target, (rule['overwrite_switch'] == 'overwrite') if 'overwrite_switch' in rule.keys() else False)
+                                    item_path = str(result) if result else str(target)
                                 else:
-                                    msg = "Copied " + f + " to " + str(result)
+                                    result = str(target)
+                                    item_path = str(target)
                                 if result:
                                     report['copied'] += 1
                                     msg = "Copied " + f + " to " + str(result)
@@ -71,10 +81,12 @@ def apply_rule(rule, dryrun=False):
                             if result:
                                 msg = "Moved " + f + " to " + str(result)
                                 report['moved'] += 1
+                                item_path = str(result)
                         except Exception as e:
                             logging.exception(f'exception {e}')
                     else:
                         msg = "Moved " + f + " to " + target_folder
+                        item_path = str(target_folder)
                 elif rule['action'] == 'Rename':
                     if 'name_pattern' in rule.keys() and rule['name_pattern']:
                         newname = rule['name_pattern'].replace(
@@ -102,10 +114,12 @@ def apply_rule(rule, dryrun=False):
                                     #     os.rename(tf.name, newname + '.json')
                                     report['renamed'] += 1
                                     msg = 'Renamed ' + f + ' to ' + str(result)
+                                    item_path = str(result)
                             except Exception as e:
                                 logging.exception(e)
                         else:
                             msg = 'Renamed ' + f + ' to ' + newname
+                            item_path = str(Path(p.parent) / newname)
                     else:
                         msg = 'Error: name pattern is missing for rule ' + \
                             rule['name']
@@ -122,21 +136,32 @@ def apply_rule(rule, dryrun=False):
                                 report['moved to subfolder'] += 1
                                 msg = "Moved " + f + " to subfolder: " + \
                                     str(target_subfolder)
+                                item_path = str(result)
                         else:
                             msg = "Moved " + f + " to subfolder: " + \
                                 str(target_subfolder)
+                            item_path = str(p.parent / Path(target_subfolder) / p.name)
                 elif rule['action'] == 'Delete':
                     msg = "Deleted " + f
+                    item_path = str(p)
+                    action_type = 'delete'
                     if not dryrun:
                         report['deleted'] += 1
                         os.remove(f)
                 elif rule['action'] == 'Send to Trash':
                     msg = "Sent to trash " + f
+                    item_path = str(p)
+                    action_type = 'trash'
                     if not dryrun:
                         report['trashed'] += 1
                         send2trash(f)
                 if msg:
-                    details.append(msg)
+                    details.append({
+                        "text": msg,
+                        "path": item_path if item_path else f,
+                        "action": action_type,
+                        "dryrun": dryrun,
+                    })
                     logging.debug(msg)
     # else:
     #     logging.debug("Rule "+rule['name'] + " disabled, skipping.")

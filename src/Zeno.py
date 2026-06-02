@@ -77,7 +77,7 @@ from zeno.ui.style_helpers import (
     populate_styled_table,
 )
 from zeno.ui.design_tokens import C
-from zeno.ui.mac_utils import set_dock_active, on_any_window_closed
+from zeno.ui.mac_utils import set_dock_active, on_any_window_closed, handle_notification_item_clicked
 
 if sys.platform == "darwin":
     from zeno.ui.ai_rule_dialog import AIRuleDialog
@@ -496,6 +496,8 @@ class RulesWindow(QMainWindow):
         else:
             msgBox.ui.label.setText("No files affected by this rule.")
         populate_styled_list(msgBox.ui.listWidget, affected)
+        msgBox.ui.listWidget.setCursor(Qt.CursorShape.PointingHandCursor)
+        msgBox.ui.listWidget.itemDoubleClicked.connect(handle_notification_item_clicked)
         msgBox.exec()
         self.service_run_details = []
         on_any_window_closed()
@@ -661,6 +663,8 @@ class RulesWindow(QMainWindow):
         else:
             msgBox.ui.label.setText("No files affected by this rule.")
         populate_styled_list(msgBox.ui.listWidget, affected)
+        msgBox.ui.listWidget.setCursor(Qt.CursorShape.PointingHandCursor)
+        msgBox.ui.listWidget.itemDoubleClicked.connect(handle_notification_item_clicked)
         msgBox.exec()
         on_any_window_closed()
 
