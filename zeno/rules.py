@@ -2,6 +2,7 @@ from fnmatch import fnmatch
 import logging
 import os
 import re
+import time as time_mod
 from pathlib import Path
 from shutil import copytree, rmtree
 from time import time
@@ -12,12 +13,35 @@ from zeno.file_utils import (get_file_time, convert_to_days, get_size, advanced_
                          _escape_glob)
 from zeno.core.file_guard import is_file_ready
 
+
+class ProcessedFileCache:
+    """Short-lived cache to prevent FSEvents from re-triggering on Zeno's own file operations."""
+    def __init__(self, ttl_seconds=10):
+        self._cache = {}
+        self._ttl = ttl_seconds
+
+    def mark(self, path: str):
+        self._cache[os.path.normpath(path)] = time_mod.time()
+
+    def was_processed(self, path: str) -> bool:
+        ts = self._cache.get(os.path.normpath(path))
+        if ts is None:
+            return False
+        if time_mod.time() - ts > self._ttl:
+            del self._cache[os.path.normpath(path)]
+            return False
+        return True
+
+
+_processed_cache = ProcessedFileCache(ttl_seconds=10)
+
 def apply_rule(rule, dryrun=False):
     report = {'copied': 0, 'moved': 0, 'moved to subfolder': 0, 'deleted': 0,
               'trashed': 0, 'renamed': 0}
     details = []
     if rule['enabled']:
         files = get_files_affected_by_rule(rule)
+        logging.debug(f"[Rule] '{rule['name']}' — {len(files)} candidates matched condition")
         if files:
             logging.debug(
                 "Processing rule" + (" [DRYRUN mode]" if dryrun else "") + ": " + rule['name'])
@@ -82,6 +106,8 @@ def apply_rule(rule, dryrun=False):
                                 msg = "Moved " + f + " to " + str(result)
                                 report['moved'] += 1
                                 item_path = str(result)
+                                _processed_cache.mark(f)
+                                _processed_cache.mark(str(result))
                         except Exception as e:
                             logging.exception(f'exception {e}')
                     else:
@@ -97,6 +123,10 @@ def apply_rule(rule, dryrun=False):
                         newname = re.sub("<replace(.*?)>", '', newname)
                         for r in rep:
                             newname = newname.replace(r[0], r[1])
+                        # Skip no-op renames where the filename wouldn't change
+                        if newname == p.name:
+                            logging.debug(f"[Rename] SKIP — no change: {f}")
+                            continue
                         if not dryrun:
                             try:
                                 result = advanced_move(p, Path(
@@ -108,18 +138,18 @@ def apply_rule(rule, dryrun=False):
                                             if p in Path(files[i]).parents:
                                                 files[i] = files[i].replace(
                                                     str(p), str(newfullname))
-                                    # tf = get_tag_file_path(f) # TBD bring this back for sidecar files
-                                    # if tf.is_file():
-                                    #     os.chdir(tf.parent)
-                                    #     os.rename(tf.name, newname + '.json')
                                     report['renamed'] += 1
                                     msg = 'Renamed ' + f + ' to ' + str(result)
                                     item_path = str(result)
+                                    _processed_cache.mark(f)
+                                    _processed_cache.mark(str(result))
+                                    logging.debug(f"[Rename] CHANGED — {p.name} → {newname}")
                             except Exception as e:
                                 logging.exception(e)
                         else:
                             msg = 'Renamed ' + f + ' to ' + newname
                             item_path = str(Path(p.parent) / newname)
+                            logging.debug(f"[Rename] CHANGED — {p.name} → {newname}")
                     else:
                         msg = 'Error: name pattern is missing for rule ' + \
                             rule['name']
@@ -137,6 +167,8 @@ def apply_rule(rule, dryrun=False):
                                 msg = "Moved " + f + " to subfolder: " + \
                                     str(target_subfolder)
                                 item_path = str(result)
+                                _processed_cache.mark(f)
+                                _processed_cache.mark(str(result))
                         else:
                             msg = "Moved " + f + " to subfolder: " + \
                                 str(target_subfolder)
@@ -165,6 +197,8 @@ def apply_rule(rule, dryrun=False):
                     logging.debug(msg)
     # else:
     #     logging.debug("Rule "+rule['name'] + " disabled, skipping.")
+    total_affected = sum(report.values())
+    logging.debug(f"[Rule] '{rule['name']}' — {total_affected} files actually changed")
     return report, details
 
 # resolves patterns in target_folder name

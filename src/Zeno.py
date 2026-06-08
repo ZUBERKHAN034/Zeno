@@ -56,7 +56,7 @@ from src.ui.ui_rules_window import Ui_rulesWindow
 from src.ui.ui_list_dialog import Ui_listDialog
 from zeno.config import VERSION, LOG_FILE
 from zeno.store import load_settings, save_settings
-from zeno.rules import apply_all_rules, apply_rule, get_rule_by_id
+from zeno.rules import apply_all_rules, apply_rule, get_rule_by_id, _processed_cache
 from zeno.file_utils import open_file
 from zeno.logging_utils import _refresh_log_file_handler
 from zeno.core.file_guard import is_file_ready, wait_until_ready
@@ -290,6 +290,10 @@ class RulesWindow(QMainWindow):
         if not os.path.exists(file_path):
             return
 
+        if _processed_cache.was_processed(file_path):
+            logging.debug(f"[Watcher] SKIP — self event: {file_path}")
+            return
+
         def process_file():
             ready = wait_until_ready(file_path, max_wait=300, poll_interval=3)
             if not ready:
@@ -324,6 +328,8 @@ class RulesWindow(QMainWindow):
                     if any(v > 0 for v in report.values()):
                         msg = f"Rule '{rule['name']}' processed {sum(report.values())} file(s)"
                         self.show_tray_message(msg, details)
+                    else:
+                        logging.debug(f"[Timer] SKIP — 0 affected for rule '{rule['name']}', no notification")
                     break
             except Exception as e:
                 logging.exception(f"Error applying rule to file {file_path}: {e}")
@@ -829,6 +835,8 @@ class zeno_service(QThread):
                 msg += key + ": " + str(report[key]) + "\n" if report[key] > 0 else ""
             if len(msg) > 0:
                 msg = "Processed files and folders:\n" + msg
+            else:
+                logging.debug("[Timer] SKIP — 0 affected across all rules, no notification")
             self.signals.signal1.emit(msg, details)
         except Exception as e:
             logging.exception(f"Scheduled rule execution failed: {e}")
