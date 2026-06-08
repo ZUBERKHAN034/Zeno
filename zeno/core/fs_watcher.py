@@ -45,7 +45,6 @@ if WATCHDOG_AVAILABLE:
         def _process(self, path: str):
             with self._lock:
                 self._pending.discard(path)
-            logging.debug(f"[Watcher] DETECTED — new file: {path}")
             self._callback(path)
 
 

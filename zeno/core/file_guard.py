@@ -309,72 +309,58 @@ def is_file_ready(path: str) -> bool:
 
         # Check partial extensions
         if is_partial_file(path):
-            logging.debug(f"[Guard] SKIP — partial extension: {path}")
             return False
 
         # Check for partial sibling
         if has_partial_sibling(path):
-            logging.debug(f"[Guard] SKIP — partial sibling: {path}")
             return False
 
         # Check Office temp files
         if is_office_temp_file(path):
-            logging.debug(f"[Guard] SKIP — Office temp file: {path}")
             return False
 
         # Check Vim swap files
         if is_vim_swap_file(path):
-            logging.debug(f"[Guard] SKIP — Vim swap file: {path}")
             return False
 
         # Check Emacs temp files
         if is_emacs_temp_file(path):
-            logging.debug(f"[Guard] SKIP — Emacs temp file: {path}")
             return False
 
         # Check IDE temp files
         if is_ide_temp_file(path):
-            logging.debug(f"[Guard] SKIP — IDE temp file: {path}")
             return False
 
         # Check system cache files
         if is_system_cache_file(path):
-            logging.debug(f"[Guard] SKIP — system cache file: {path}")
             return False
 
         # Check hidden files
         if is_hidden_file(path):
-            logging.debug(f"[Guard] SKIP — hidden file: {path}")
             return False
 
         # Check macOS resource forks
         if is_resource_fork(path):
-            logging.debug(f"[Guard] SKIP — resource fork: {path}")
             return False
 
         # Check sync in progress
         if is_sync_in_progress(path):
-            logging.debug(f"[Guard] SKIP — sync in progress: {path}")
             return False
 
         # Check Safari downloading (macOS specific)
         if is_safari_downloading(path):
-            logging.debug(f"[Guard] SKIP — Safari downloading: {path}")
             return False
 
         # Check if file is locked
         if is_file_locked(path):
-            logging.debug(f"[Guard] SKIP — file locked: {path}")
             return False
 
         # Check modification time stability
         if not is_mtime_stable(path):
-            logging.debug(f"[Guard] SKIP — modified too recently: {path}")
             return False
 
         # Check size stability (slowest check)
         if not is_size_stable(path):
-            logging.debug(f"[Guard] SKIP — size still growing: {path}")
             return False
 
         return True
@@ -400,9 +386,7 @@ def wait_until_ready(
     elapsed = 0
     while elapsed < max_wait:
         if is_file_ready(path):
-            logging.debug(f"[Guard] READY — processing: {path}")
             return True
-        logging.debug(f"[Guard] WAIT — polling file: {path}")
         time.sleep(poll_interval)
         elapsed += poll_interval
 

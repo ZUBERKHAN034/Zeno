@@ -291,7 +291,6 @@ class RulesWindow(QMainWindow):
             return
 
         if _processed_cache.was_processed(file_path):
-            logging.debug(f"[Watcher] SKIP — self event: {file_path}")
             return
 
         def process_file():
@@ -322,14 +321,13 @@ class RulesWindow(QMainWindow):
             try:
                 affected_files = get_files_affected_by_rule(rule, allow_empty_conditions=True)
                 if file_path in affected_files:
-                    logging.debug(f"[Watcher] TRIGGERED — applying rule '{rule['name']}' to: {file_path}")
                     # Apply the rule - apply_rule handles duplicate detection internally
                     report, details = apply_rule(rule)
                     if any(v > 0 for v in report.values()):
                         msg = f"Rule '{rule['name']}' processed {sum(report.values())} file(s)"
                         self.show_tray_message(msg, details)
                     else:
-                        logging.debug(f"[Timer] SKIP — 0 affected for rule '{rule['name']}', no notification")
+                        pass
                     break
             except Exception as e:
                 logging.exception(f"Error applying rule to file {file_path}: {e}")
@@ -515,7 +513,7 @@ class RulesWindow(QMainWindow):
             instanced_thread = zeno_service(self)
             instanced_thread.start()
         else:
-            logging.debug("Service still running, skipping the scheduled exec")
+            pass
 
     def add_rule(self):
         """Opens the rule edit window to add a new rule."""
@@ -836,7 +834,7 @@ class zeno_service(QThread):
             if len(msg) > 0:
                 msg = "Processed files and folders:\n" + msg
             else:
-                logging.debug("[Timer] SKIP — 0 affected across all rules, no notification")
+                pass
             self.signals.signal1.emit(msg, details)
         except Exception as e:
             logging.exception(f"Scheduled rule execution failed: {e}")

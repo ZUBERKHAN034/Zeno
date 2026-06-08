@@ -41,10 +41,7 @@ def apply_rule(rule, dryrun=False):
     details = []
     if rule['enabled']:
         files = get_files_affected_by_rule(rule)
-        logging.debug(f"[Rule] '{rule['name']}' — {len(files)} candidates matched condition")
         if files:
-            logging.debug(
-                "Processing rule" + (" [DRYRUN mode]" if dryrun else "") + ": " + rule['name'])
             for f in files:
                 msg = ""
                 item_path = None
@@ -125,7 +122,6 @@ def apply_rule(rule, dryrun=False):
                             newname = newname.replace(r[0], r[1])
                         # Skip no-op renames where the filename wouldn't change
                         if newname == p.name:
-                            logging.debug(f"[Rename] SKIP — no change: {f}")
                             continue
                         if not dryrun:
                             try:
@@ -143,13 +139,11 @@ def apply_rule(rule, dryrun=False):
                                     item_path = str(result)
                                     _processed_cache.mark(f)
                                     _processed_cache.mark(str(result))
-                                    logging.debug(f"[Rename] CHANGED — {p.name} → {newname}")
                             except Exception as e:
                                 logging.exception(e)
                         else:
                             msg = 'Renamed ' + f + ' to ' + newname
                             item_path = str(Path(p.parent) / newname)
-                            logging.debug(f"[Rename] CHANGED — {p.name} → {newname}")
                     else:
                         msg = 'Error: name pattern is missing for rule ' + \
                             rule['name']
@@ -194,11 +188,9 @@ def apply_rule(rule, dryrun=False):
                         "action": action_type,
                         "dryrun": dryrun,
                     })
-                    logging.debug(msg)
     # else:
     #     logging.debug("Rule "+rule['name'] + " disabled, skipping.")
     total_affected = sum(report.values())
-    logging.debug(f"[Rule] '{rule['name']}' — {total_affected} files actually changed")
     return report, details
 
 # resolves patterns in target_folder name
@@ -320,7 +312,7 @@ def get_files_affected_by_rule_folder(rule, dirname, files_found=None):
 
             if conditions_met:
                 if not is_file_ready(fullname):
-                    logging.debug(f"[Guard] SKIP — file not ready: {fullname}")
+                    pass
                 else:
                     out_files.append(os.path.normpath(fullname))
 
