@@ -15,6 +15,11 @@ except ImportError:
 
 # Only define ZenoFileEventHandler if watchdog is available
 if WATCHDOG_AVAILABLE:
+    try:
+        from zeno.rules import _processed_cache
+    except ImportError:
+        _processed_cache = None
+
     class ZenoFileEventHandler(FileSystemEventHandler):
         def __init__(self, callback):
             super().__init__()
@@ -24,6 +29,8 @@ if WATCHDOG_AVAILABLE:
 
         def on_created(self, event):
             if not event.is_directory:
+                if _processed_cache is not None and _processed_cache.was_processed(event.src_path):
+                    return
                 self._schedule(event.src_path)
 
         def on_modified(self, event):
@@ -32,7 +39,15 @@ if WATCHDOG_AVAILABLE:
 
         def on_moved(self, event):
             if not event.is_directory:
+                if _processed_cache is not None and _processed_cache.was_processed(event.dest_path):
+                    return
                 self._schedule(event.dest_path)
+
+        def on_deleted(self, event):
+            if not event.is_directory:
+                if _processed_cache is not None and _processed_cache.was_processed(event.src_path):
+                    return
+                self._schedule(event.src_path)
 
         def _schedule(self, path: str):
             with self._lock:

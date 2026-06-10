@@ -92,24 +92,54 @@ def apply_rule(rule, dryrun=False):
                     except Exception as e:
                         logging.exception(f'exception {e}')
                 elif rule['action'] == 'Move':
-                    if not dryrun:
-                        target_folder = resolve_path(rule['target_folder'], p)
-                        target = Path(target_folder) / str(p).replace(':', '') if ('keep_folder_structure' in rule.keys(
-                        ) and rule['keep_folder_structure']) else Path(target_folder) / p.name
-                        try:
-                            result = advanced_move(
-                                f, target, (rule['overwrite_switch'] == 'overwrite') if 'overwrite_switch' in rule.keys() else False)
-                            if result:
-                                msg = "Moved " + f + " to " + str(result)
-                                report['moved'] += 1
-                                item_path = str(result)
-                                _processed_cache.mark(f)
-                                _processed_cache.mark(str(result))
-                        except Exception as e:
-                            logging.exception(f'exception {e}')
+                    target_folder = resolve_path(rule['target_folder'], p)
+                    keep_struct = rule.get('keep_folder_structure', False)
+                    if keep_struct:
+                        src_folder = None
+                        norm_f = os.path.normpath(f)
+                        for folder in rule['folders']:
+                            norm_folder = os.path.normpath(folder)
+                            if norm_f == norm_folder or norm_f.startswith(norm_folder + os.sep):
+                                src_folder = folder
+                                break
+                        if src_folder:
+                            rel = os.path.relpath(f, src_folder)
+                            target = Path(target_folder) / rel
+                        else:
+                            target = Path(target_folder) / p.name
                     else:
-                        msg = "Moved " + f + " to " + target_folder
-                        item_path = str(target_folder)
+                        target = Path(target_folder) / p.name
+
+                    if not dryrun:
+                        if os.path.normpath(f) == os.path.normpath(str(target)):
+                            msg = "Source and destination are the same, skipping: " + f
+                            item_path = str(f)
+                        else:
+                            dst_in_src = False
+                            norm_target = os.path.normpath(str(target))
+                            for folder in rule['folders']:
+                                norm_folder = os.path.normpath(folder)
+                                if norm_target == norm_folder or norm_target.startswith(norm_folder + os.sep):
+                                    dst_in_src = True
+                                    break
+                            if dst_in_src:
+                                msg = "Destination inside source folder, skipping to prevent re-scan: " + f
+                                item_path = str(f)
+                            else:
+                                try:
+                                    result = advanced_move(
+                                        f, target, (rule['overwrite_switch'] == 'overwrite') if 'overwrite_switch' in rule.keys() else False)
+                                    if result:
+                                        msg = "Moved " + f + " → " + str(result)
+                                        report['moved'] += 1
+                                        item_path = str(result)
+                                        _processed_cache.mark(f)
+                                        _processed_cache.mark(str(result))
+                                except Exception as e:
+                                    logging.exception(f'exception {e}')
+                    else:
+                        msg = "Moved " + f + " → " + str(target)
+                        item_path = str(target)
                 elif rule['action'] == 'Rename':
                     if 'name_pattern' in rule.keys() and rule['name_pattern']:
                         newname = rule['name_pattern'].replace(
@@ -188,9 +218,6 @@ def apply_rule(rule, dryrun=False):
                         "action": action_type,
                         "dryrun": dryrun,
                     })
-    # else:
-    #     logging.debug("Rule "+rule['name'] + " disabled, skipping.")
-    total_affected = sum(report.values())
     return report, details
 
 # resolves patterns in target_folder name
@@ -312,6 +339,8 @@ def get_files_affected_by_rule_folder(rule, dirname, files_found=None):
 
             if conditions_met:
                 if not is_file_ready(fullname):
+                    pass
+                elif _processed_cache.was_processed(fullname):
                     pass
                 else:
                     out_files.append(os.path.normpath(fullname))
