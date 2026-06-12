@@ -35,6 +35,14 @@ class ProcessedFileCache:
 
 _processed_cache = ProcessedFileCache(ttl_seconds=10)
 
+
+def _file_already_in_destination(file_path: str, dst_root: str) -> bool:
+    """Returns True only if THIS file is already inside the destination tree."""
+    file_dir = os.path.normpath(os.path.dirname(file_path))
+    dst = os.path.normpath(dst_root)
+    return file_dir == dst or file_dir.startswith(dst + os.sep)
+
+
 def apply_rule(rule, dryrun=False):
     report = {'copied': 0, 'moved': 0, 'moved to subfolder': 0, 'deleted': 0,
               'trashed': 0, 'renamed': 0}
@@ -114,18 +122,10 @@ def apply_rule(rule, dryrun=False):
                         if os.path.normpath(f) == os.path.normpath(str(target)):
                             msg = "Source and destination are the same, skipping: " + f
                             item_path = str(f)
+                        elif _file_already_in_destination(f, str(target_folder)):
+                            msg = "File already in destination folder, skipping: " + f
+                            item_path = str(f)
                         else:
-                            dst_in_src = False
-                            norm_target = os.path.normpath(str(target))
-                            for folder in rule['folders']:
-                                norm_folder = os.path.normpath(folder)
-                                if norm_target == norm_folder or norm_target.startswith(norm_folder + os.sep):
-                                    dst_in_src = True
-                                    break
-                            if dst_in_src:
-                                msg = "Destination inside source folder, skipping to prevent re-scan: " + f
-                                item_path = str(f)
-                            else:
                                 try:
                                     result = advanced_move(
                                         f, target, (rule['overwrite_switch'] == 'overwrite') if 'overwrite_switch' in rule.keys() else False)
@@ -243,9 +243,14 @@ def get_files_affected_by_rule(rule, allow_empty_conditions=False):
     if (not 'conditions' in rule.keys() or not rule['conditions']) and not allow_empty_conditions:
         return ([])
     found = []
+    exclude_dir = None
+    if rule['action'] in ('Copy', 'Move'):
+        raw_target = rule.get('target_folder', '')
+        if raw_target and '<' not in raw_target:
+            exclude_dir = raw_target
     for f in rule['folders']:
         if Path(f).is_dir():
-            found.extend(get_files_affected_by_rule_folder(rule, f, []))
+            found.extend(get_files_affected_by_rule_folder(rule, f, [], exclude_dir=exclude_dir))
         else:
             logging.error('Folder ' + f + ' in rule ' +
                           rule['name'] + ' doesn\'t exist, skipping')
@@ -276,9 +281,10 @@ def get_files_affected_by_rule(rule, allow_empty_conditions=False):
 
 
 
-def get_files_affected_by_rule_folder(rule, dirname, files_found=None):
+def get_files_affected_by_rule_folder(rule, dirname, files_found=None, exclude_dir=None):
     files = os.listdir(dirname)
     out_files = files_found if files_found is not None else []
+    exclude_norm = os.path.normpath(exclude_dir) if exclude_dir else None
     for f in files:
         if f != '.dc':  # ignoring .dc folder TBD can be removed for now and brough back for sidecar files
             fullname = os.path.join(dirname, f)
@@ -347,8 +353,10 @@ def get_files_affected_by_rule_folder(rule, dirname, files_found=None):
 
             # Recurse for 'Rename'; for other actions skip already-matched folders
             if (rule['action'] == 'Rename' or not conditions_met) and os.path.isdir(fullname) and rule['recursive']:
-                # if not conditions_met and os.path.isdir(fullname) and rule['recursive']:
-                get_files_affected_by_rule_folder(rule, fullname, out_files)
+                norm_full = os.path.normpath(fullname)
+                if exclude_norm and (norm_full == exclude_norm or norm_full.startswith(exclude_norm + os.sep)):
+                    continue
+                get_files_affected_by_rule_folder(rule, fullname, out_files, exclude_dir=exclude_dir)
     return out_files
 
 def get_rule_by_name(name):
